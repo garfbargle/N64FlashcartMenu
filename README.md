@@ -49,7 +49,7 @@ This menu aims to support as many N64 flashcarts as possible. The current state 
 Gameflix turns a ROM folder into a fast, cover-art-first N64 library. When it
 finds a conventional root library folder—`/roms`, `/Roms`, `/games`, or
 `/Games`—the menu opens directly into a clean six-cover grid instead of a file
-browser. Navigate with the D-pad, press `A` to play immediately, press `R` for
+browser. Navigate with the D-pad, press `A` to launch immediately, press `R` for
 ROM details, or press `B` to drop back into the full Files browser.
 
 The launcher deliberately scans one library folder, never merges several, so
