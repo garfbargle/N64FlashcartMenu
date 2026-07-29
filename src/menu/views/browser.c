@@ -19,6 +19,16 @@ static const char *image_extensions[] = { "png", NULL };
 static const char *text_extensions[] = { "txt", "ini", "yml", "yaml", NULL };
 static const char *music_extensions[] = { "mp3", NULL };
 
+/* Gameflix deliberately uses one library directory. Combining several common
+ * layouts would make duplicate ROMs and their saves ambiguous. */
+static char *gameflix_library_directories[] = {
+    "roms",
+    "Roms",
+    "games",
+    "Games",
+    NULL,
+};
+
 static const char *hidden_paths[] = {
     "/menu.bin",
     "/menu",
@@ -141,6 +151,19 @@ static void browser_list_free (menu_t *menu) {
     menu->browser.selected = -1;
 }
 
+/* Returns an owned path for the first conventional library directory that
+ * exists on the card, or NULL when this card uses the regular browser only. */
+static path_t *gameflix_library_path (menu_t *menu) {
+    for (int i = 0; gameflix_library_directories[i] != NULL; i++) {
+        path_t *path = path_init(menu->storage_prefix, gameflix_library_directories[i]);
+        if (directory_exists(path_get(path))) {
+            return path;
+        }
+        path_free(path);
+    }
+    return NULL;
+}
+
 static bool load_directory (menu_t *menu) {
     int result;
     dir_t info;
@@ -212,7 +235,9 @@ static bool load_directory (menu_t *menu) {
         return true;
     }
 
-    if (path_is_root(menu->browser.directory)) {
+    path_t *gameflix_library = path_is_root(menu->browser.directory) ? gameflix_library_path(menu) : NULL;
+    if (gameflix_library) {
+        path_free(gameflix_library);
         bool gameflix_entry_exists = false;
         for (int i = 0; i < menu->browser.entries; i++) {
             if (strcmp(menu->browser.list[i].name, "gameflix") == 0) {
@@ -353,16 +378,14 @@ static bool push_directory (menu_t *menu, char *directory) {
 
     // Check if entering gameflix virtual directory
     if (strcmp(directory, "gameflix") == 0 && path_is_root(menu->browser.directory)) {
+        path_t *scan_path = gameflix_library_path(menu);
+        if (!scan_path) {
+            path_free(previous_directory);
+            return true;
+        }
+
         browser_list_free(menu);
 
-        // This SD card keeps the complete, non-duplicated library in
-        // /Games/All. Other Games directories are overlapping player-count
-        // categories, so scanning the root would show each title repeatedly.
-        path_t *scan_path = path_init(menu->storage_prefix, "Games/All");
-        if (!directory_exists(path_get(scan_path))) {
-            path_free(scan_path);
-            scan_path = path_init(menu->storage_prefix, "");
-        }
         if (load_gameflix_collection(menu, scan_path)) {
             path_free(scan_path);
             path_free(previous_directory);
@@ -438,11 +461,11 @@ static bool pop_directory (menu_t *menu) {
     return false;
 }
 
-/* A curated Gameflix library is deliberately opt-in: carts without the
- * /Games/All layout keep the stock file browser as their startup view. */
+/* Gameflix stays opt-in by filesystem layout: cards without a conventional
+ * library directory retain the stock file browser as their startup view. */
 static bool gameflix_library_exists (menu_t *menu) {
-    path_t *library = path_init(menu->storage_prefix, "Games/All");
-    bool exists = directory_exists(path_get(library));
+    path_t *library = gameflix_library_path(menu);
+    bool exists = library != NULL;
     path_free(library);
     return exists;
 }
