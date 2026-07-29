@@ -44,17 +44,19 @@ This menu aims to support as many N64 flashcarts as possible. The current state 
 * ROM information descriptions.
 * ROM history and favorites.
 
-### Optional Gameflix grid launcher
+### Gameflix: a console-first game launcher
 
-Gameflix detects the first existing root library directory in this order:
-`/roms`, `/Roms`, `/games`, then `/Games`. It scans only that one directory,
-recursively—never several at once—so duplicate ROMs and ambiguous save paths
-are avoided. When one exists, the menu starts directly in a clean six-cover
-grid and uses the existing box-art collection for thumbnails. The selected
-title is displayed above the grid; `A` launches it immediately, `R` opens its
-ROM information page, and `B` returns to the regular Files browser.
-Thumbnails are cached and the next grid page is prepared in the background to
-keep navigation responsive on low-powered flashcarts.
+Gameflix turns a ROM folder into a fast, cover-art-first N64 library. When it
+finds a conventional root library folder—`/roms`, `/Roms`, `/games`, or
+`/Games`—the menu opens directly into a clean six-cover grid instead of a file
+browser. Navigate with the D-pad, press `A` to play immediately, press `R` for
+ROM details, or press `B` to drop back into the full Files browser.
+
+The launcher deliberately scans one library folder, never merges several, so
+duplicate ROMs and ambiguous save paths stay out of the experience. Covers are
+decoded progressively, cached on the SD card, and prepared for the next page
+in the background—keeping browsing responsive even on flashcarts with very
+limited hardware.
 
 
 ## Aims
