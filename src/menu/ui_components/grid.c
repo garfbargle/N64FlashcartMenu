@@ -326,7 +326,6 @@ void ui_components_grid_load_page (const char *storage_prefix, entry_t *list, in
 
 void ui_components_grid_draw (entry_t *list, int entries, int selected, int current_page, int grid_row, int grid_col) {
     int start_index = current_page * GRID_ITEMS_PER_PAGE;
-    int total_pages = (entries + GRID_ITEMS_PER_PAGE - 1) / GRID_ITEMS_PER_PAGE;
 
     for (int row = 0; row < GRID_ROWS; row++) {
         for (int col = 0; col < GRID_COLS; col++) {
@@ -336,11 +335,10 @@ void ui_components_grid_draw (entry_t *list, int entries, int selected, int curr
                 continue;
             }
 
-            entry_t *entry = &list[entry_index];
             int cell_x = GRID_START_X + col * (GRID_CELL_WIDTH + GRID_SPACING_X);
             int cell_y = GRID_START_Y + row * (GRID_CELL_HEIGHT + GRID_SPACING_Y);
             int thumb_x = cell_x + (GRID_CELL_WIDTH - GRID_IMAGE_WIDTH) / 2;
-            int thumb_y = cell_y + 4;
+            int thumb_y = cell_y + (GRID_CELL_HEIGHT - GRID_IMAGE_HEIGHT) / 2;
 
             rdpq_set_mode_fill(GRID_CELL_BG_COLOR);
             rdpq_fill_rectangle(cell_x, cell_y, cell_x + GRID_CELL_WIDTH, cell_y + GRID_CELL_HEIGHT);
@@ -364,30 +362,9 @@ void ui_components_grid_draw (entry_t *list, int entries, int selected, int curr
                 rdpq_fill_rectangle(thumb_x, thumb_y, thumb_x + GRID_IMAGE_WIDTH, thumb_y + GRID_IMAGE_HEIGHT);
             }
 
-            char display_name[256];
-            strncpy(display_name, entry->name, sizeof(display_name) - 1);
-            display_name[sizeof(display_name) - 1] = '\0';
-            char *dot = strrchr(display_name, '.');
-            if (dot) {
-                *dot = '\0';
-            }
-
-            rdpq_textparms_t textparms = {
-                .width = GRID_CELL_WIDTH - 8,
-                .align = ALIGN_CENTER,
-            };
-            rdpq_text_printn(&textparms, FNT_DEFAULT, cell_x + 4, cell_y + GRID_CELL_HEIGHT - 16, display_name, strlen(display_name));
-
             if (row == grid_row && col == grid_col && entry_index == selected) {
                 ui_components_border_draw(cell_x - 2, cell_y - 2, cell_x + GRID_CELL_WIDTH + 2, cell_y + GRID_CELL_HEIGHT + 2);
             }
         }
-    }
-
-    if (total_pages > 1) {
-        char page_text[32];
-        snprintf(page_text, sizeof(page_text), "Page %d/%d", current_page + 1, total_pages);
-        rdpq_textparms_t textparms = { .align = ALIGN_CENTER };
-        rdpq_text_print(&textparms, FNT_DEFAULT, DISPLAY_CENTER_X, LAYOUT_ACTIONS_SEPARATOR_Y - 20, page_text);
     }
 }

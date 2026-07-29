@@ -438,6 +438,15 @@ static bool pop_directory (menu_t *menu) {
     return false;
 }
 
+/* A curated Gameflix library is deliberately opt-in: carts without the
+ * /Games/All layout keep the stock file browser as their startup view. */
+static bool gameflix_library_exists (menu_t *menu) {
+    path_t *library = path_init(menu->storage_prefix, "Games/All");
+    bool exists = directory_exists(path_get(library));
+    path_free(library);
+    return exists;
+}
+
 path_t *view_browser_entry_path (menu_t *menu) {
     if (!menu->browser.entry) {
         return NULL;
@@ -578,6 +587,14 @@ static void process (menu_t *menu) {
         sound_play_effect(SFX_ENTER);
         if (menu->browser.is_gameflix_mode) {
             ui_components_grid_free();
+
+            /* Gameflix is a launcher. A starts the selected N64 game right
+             * away; R remains the deliberate route to its detail screen. */
+            if (menu->browser.entry->type == ENTRY_TYPE_ROM) {
+                menu->boot_pending.rom_file = true;
+                menu->next_mode = MENU_MODE_LOAD_ROM;
+                return;
+            }
         }
         switch (menu->browser.entry->type) {
             case ENTRY_TYPE_DIR:
@@ -615,14 +632,22 @@ static void process (menu_t *menu) {
         }
         sound_play_effect(SFX_EXIT);
     } else if (menu->actions.options && menu->browser.entry) {
-        ui_components_context_menu_show(&entry_context_menu);
-        sound_play_effect(SFX_SETTING);
+        if (menu->browser.is_gameflix_mode && menu->browser.entry->type == ENTRY_TYPE_ROM) {
+            ui_components_grid_free();
+            menu->next_mode = MENU_MODE_LOAD_ROM;
+            sound_play_effect(SFX_ENTER);
+        } else {
+            ui_components_context_menu_show(&entry_context_menu);
+            sound_play_effect(SFX_SETTING);
+        }
     } else if (menu->actions.settings) {
-        ui_components_context_menu_show(&settings_context_menu);
-        sound_play_effect(SFX_SETTING);
-    } else if (menu->actions.next_tab) {
+        if (!menu->browser.is_gameflix_mode) {
+            ui_components_context_menu_show(&settings_context_menu);
+            sound_play_effect(SFX_SETTING);
+        }
+    } else if (menu->actions.next_tab && !menu->browser.is_gameflix_mode) {
         menu->next_mode = MENU_MODE_HISTORY;
-    } else if (menu->actions.previous_tab) {
+    } else if (menu->actions.previous_tab && !menu->browser.is_gameflix_mode) {
         menu->next_mode = MENU_MODE_FAVORITE;
     }
 }
@@ -631,6 +656,37 @@ static void draw (menu_t *menu, surface_t *d) {
     rdpq_attach(d, NULL);
 
     ui_components_background_draw();
+
+    if (menu->browser.is_gameflix_mode) {
+        ui_components_grid_draw(
+            menu->browser.list,
+            menu->browser.entries,
+            menu->browser.selected,
+            menu->browser.current_page,
+            menu->browser.grid_row,
+            menu->browser.grid_col
+        );
+
+        if (menu->browser.entry) {
+            char title[256];
+            strncpy(title, menu->browser.entry->name, sizeof(title) - 1);
+            title[sizeof(title) - 1] = '\0';
+            char *extension = strrchr(title, '.');
+            if (extension) {
+                *extension = '\0';
+            }
+
+            rdpq_textparms_t textparms = {
+                .width = VISIBLE_AREA_WIDTH - 32,
+                .align = ALIGN_CENTER,
+                .wrap = WRAP_ELLIPSES,
+            };
+            rdpq_text_printn(&textparms, FNT_DEFAULT, VISIBLE_AREA_X0 + 16, VISIBLE_AREA_Y0 + 8, title, strlen(title));
+        }
+
+        rdpq_detach_show();
+        return;
+    }
 
     ui_components_tabs_common_draw(0);
 
@@ -706,12 +762,25 @@ void view_browser_init (menu_t *menu) {
     if (!menu->browser.valid) {
         ui_components_context_menu_init(&entry_context_menu);
         ui_components_context_menu_init(&settings_context_menu);
+        bool start_gameflix = gameflix_library_exists(menu);
+
+        /* Ignore an old browser default when this card has a curated library:
+         * boot to the launcher, while B still returns to the root browser. */
+        if (start_gameflix) {
+            path_free(menu->browser.directory);
+            menu->browser.directory = path_init(menu->storage_prefix, "/");
+        }
+
         if (load_directory(menu)) {
             path_free(menu->browser.directory);
             menu->browser.directory = path_init(menu->storage_prefix, "");
             menu_show_error(menu, "Error while opening initial directory");
         } else {
             menu->browser.valid = true;
+            if (start_gameflix && push_directory(menu, "gameflix")) {
+                menu->browser.valid = false;
+                menu_show_error(menu, "Couldn't open Gameflix library");
+            }
         }
     }
 
@@ -728,7 +797,8 @@ void view_browser_display (menu_t *menu, surface_t *display) {
     process(menu);
 
     // Load thumbnails for current page in grid mode
-    if (menu->browser.display_mode == DISPLAY_MODE_GRID && menu->browser.entries > 0) {
+    if (menu->next_mode == MENU_MODE_BROWSER &&
+        menu->browser.display_mode == DISPLAY_MODE_GRID && menu->browser.entries > 0) {
         ui_components_grid_load_page(
             menu->storage_prefix,
             menu->browser.list,

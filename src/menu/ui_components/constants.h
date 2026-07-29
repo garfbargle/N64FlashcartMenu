@@ -173,24 +173,24 @@
 #define GRID_ITEMS_PER_PAGE             (GRID_ROWS * GRID_COLS)
 
 /** @brief The width of each grid cell. */
-#define GRID_CELL_WIDTH                 (192)
+#define GRID_CELL_WIDTH                 (186)
 /** @brief The height of each grid cell. */
-#define GRID_CELL_HEIGHT                (178)
+#define GRID_CELL_HEIGHT                (188)
 
 /** @brief The width of thumbnail images in grid view. */
 #define GRID_IMAGE_WIDTH                (180)
 /** @brief The height of thumbnail images in grid view. */
-#define GRID_IMAGE_HEIGHT               (120)
+#define GRID_IMAGE_HEIGHT               (158)
 
 /** @brief The horizontal spacing between grid cells. */
-#define GRID_SPACING_X                  (0)
+#define GRID_SPACING_X                  (6)
 /** @brief The vertical spacing between grid cells. */
-#define GRID_SPACING_Y                  (6)
+#define GRID_SPACING_Y                  (8)
 
 /** @brief The grid starting position on the X axis. */
-#define GRID_START_X                    (VISIBLE_AREA_X0)
+#define GRID_START_X                    (VISIBLE_AREA_X0 + 3)
 /** @brief The grid starting position on the Y axis. */
-#define GRID_START_Y                    (VISIBLE_AREA_Y0 + TAB_HEIGHT + BORDER_THICKNESS)
+#define GRID_START_Y                    (VISIBLE_AREA_Y0 + 28)
 
 /** @brief The grid selection highlight color. */
 #define GRID_HIGHLIGHT_COLOR            RGBA32(0xFF, 0xFF, 0xFF, 0xFF)
