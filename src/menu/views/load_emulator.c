@@ -111,7 +111,7 @@ static void load (menu_t *menu) {
 void view_load_emulator_init (menu_t *menu) {
     menu->boot_pending.emulator_file = false;
 
-    path_t *path = path_clone_push(menu->browser.directory, menu->browser.entry->name);
+    path_t *path = view_browser_entry_path(menu);
 
     if (file_has_extensions(path_get(path), emu_nes_rom_extensions)) {
         emu_type = CART_LOAD_EMU_TYPE_NES;

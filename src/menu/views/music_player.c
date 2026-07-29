@@ -128,7 +128,7 @@ void view_music_player_init (menu_t *menu) {
         return;
     }
 
-    path_t *path = path_clone_push(menu->browser.directory, menu->browser.entry->name);
+    path_t *path = view_browser_entry_path(menu);
 
     err = mp3player_load(path_get(path));
     if (err != MP3PLAYER_OK) {

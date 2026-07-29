@@ -108,7 +108,7 @@ void view_image_viewer_init (menu_t *menu) {
     image_set_as_background = false;
     image = NULL;
 
-    path_t *path = path_clone_push(menu->browser.directory, menu->browser.entry->name);
+    path_t *path = view_browser_entry_path(menu);
 
     png_err_t err = png_decoder_start(path_get(path), 640, 480, image_callback, menu);
     if (err != PNG_OK) {

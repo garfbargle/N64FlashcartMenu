@@ -34,6 +34,14 @@ typedef enum {
  */
 typedef void png_callback_t (png_err_t err, surface_t *decoded_image, void *callback_data);
 
+typedef struct png_decoder png_decoder_t;
+
+png_decoder_t *png_decoder_create (void);
+void png_decoder_destroy (png_decoder_t *decoder);
+png_err_t png_decoder_start_instance (png_decoder_t *decoder, char *path, int max_width, int max_height, png_callback_t *callback, void *callback_data);
+void png_decoder_abort_instance (png_decoder_t *decoder);
+void png_decoder_poll_instance (png_decoder_t *decoder);
+
 /**
  * @brief Start the PNG decoding process.
  * 

@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "../fonts.h"
+#include "../ui_components/constants.h"
 #include "utils/fs.h"
 #include "views.h"
 #include "../sound.h"
@@ -129,6 +130,7 @@ static int compare_entry (const void *pa, const void *pb) {
 static void browser_list_free (menu_t *menu) {
     for (int i = menu->browser.entries - 1; i >= 0; i--) {
         free(menu->browser.list[i].name);
+        path_free(menu->browser.list[i].path);
     }
 
     free(menu->browser.list);
@@ -159,9 +161,16 @@ static bool load_directory (menu_t *menu) {
         }
 
         if (!hide) {
-            menu->browser.list = realloc(menu->browser.list, (menu->browser.entries + 1) * sizeof(entry_t));
+            entry_t *list = realloc(menu->browser.list, (menu->browser.entries + 1) * sizeof(entry_t));
+            if (!list) {
+                path_free(path);
+                browser_list_free(menu);
+                return true;
+            }
 
+            menu->browser.list = list;
             entry_t *entry = &menu->browser.list[menu->browser.entries++];
+            memset(entry, 0, sizeof(*entry));
 
             entry->name = strdup(info.d_name);
             if (!entry->name) {
@@ -203,12 +212,39 @@ static bool load_directory (menu_t *menu) {
         return true;
     }
 
+    if (path_is_root(menu->browser.directory)) {
+        bool gameflix_entry_exists = false;
+        for (int i = 0; i < menu->browser.entries; i++) {
+            if (strcmp(menu->browser.list[i].name, "gameflix") == 0) {
+                gameflix_entry_exists = true;
+                break;
+            }
+        }
+
+        if (!gameflix_entry_exists) {
+            entry_t *list = realloc(menu->browser.list, (menu->browser.entries + 1) * sizeof(entry_t));
+            if (!list) {
+                browser_list_free(menu);
+                return true;
+            }
+            menu->browser.list = list;
+            entry_t *entry = &menu->browser.list[menu->browser.entries++];
+            memset(entry, 0, sizeof(*entry));
+            entry->name = strdup("gameflix");
+            if (!entry->name) {
+                browser_list_free(menu);
+                return true;
+            }
+            entry->type = ENTRY_TYPE_DIR;
+        }
+    }
+
+    qsort(menu->browser.list, menu->browser.entries, sizeof(entry_t), compare_entry);
+
     if (menu->browser.entries > 0) {
         menu->browser.selected = 0;
         menu->browser.entry = &menu->browser.list[menu->browser.selected];
     }
-
-    qsort(menu->browser.list, menu->browser.entries, sizeof(entry_t), compare_entry);
 
     return false;
 }
@@ -253,8 +289,11 @@ static bool load_gameflix_collection (menu_t *menu, path_t *search_path) {
                 if (strcmp(dir_info.d_name, "gameflix") != 0) {
                     // Recurse into subdirectory
                     path_push(search_path, dir_info.d_name);
-                    load_gameflix_collection(menu, search_path);
+                    bool failed = load_gameflix_collection(menu, search_path);
                     path_pop(search_path);
+                    if (failed) {
+                        return true;
+                    }
                 }
             } else {
                 // Check if file is a ROM/disk/emulator
@@ -270,13 +309,14 @@ static bool load_gameflix_collection (menu_t *menu, path_t *search_path) {
 
                 // Only add ROM/disk/emulator files
                 if (type == ENTRY_TYPE_ROM || type == ENTRY_TYPE_DISK || type == ENTRY_TYPE_EMULATOR) {
-                    menu->browser.list = realloc(menu->browser.list, (menu->browser.entries + 1) * sizeof(entry_t));
-
-                    if (!menu->browser.list) {
+                    entry_t *list = realloc(menu->browser.list, (menu->browser.entries + 1) * sizeof(entry_t));
+                    if (!list) {
                         return true;
                     }
 
+                    menu->browser.list = list;
                     entry_t *entry = &menu->browser.list[menu->browser.entries++];
+                    memset(entry, 0, sizeof(*entry));
 
                     entry->name = strdup(dir_info.d_name);
                     if (!entry->name) {
@@ -284,8 +324,16 @@ static bool load_gameflix_collection (menu_t *menu, path_t *search_path) {
                         return true;
                     }
 
+                    entry->path = path_clone_push(search_path, dir_info.d_name);
+                    if (!entry->path) {
+                        browser_list_free(menu);
+                        return true;
+                    }
+
                     entry->type = type;
                     entry->size = dir_info.d_size;
+
+
                 }
             }
         }
@@ -295,11 +343,6 @@ static bool load_gameflix_collection (menu_t *menu, path_t *search_path) {
 
     if (result < -1) {
         return true;
-    }
-
-    // Sort alphabetically after collecting all entries
-    if (menu->browser.entries > 0) {
-        qsort(menu->browser.list, menu->browser.entries, sizeof(entry_t), compare_entry);
     }
 
     return false;
@@ -312,8 +355,14 @@ static bool push_directory (menu_t *menu, char *directory) {
     if (strcmp(directory, "gameflix") == 0 && path_is_root(menu->browser.directory)) {
         browser_list_free(menu);
 
-        // Start recursive ROM scan from root
-        path_t *scan_path = path_init(menu->storage_prefix, "");
+        // This SD card keeps the complete, non-duplicated library in
+        // /Games/All. Other Games directories are overlapping player-count
+        // categories, so scanning the root would show each title repeatedly.
+        path_t *scan_path = path_init(menu->storage_prefix, "Games/All");
+        if (!directory_exists(path_get(scan_path))) {
+            path_free(scan_path);
+            scan_path = path_init(menu->storage_prefix, "");
+        }
         if (load_gameflix_collection(menu, scan_path)) {
             path_free(scan_path);
             path_free(previous_directory);
@@ -321,6 +370,12 @@ static bool push_directory (menu_t *menu, char *directory) {
             return true;
         }
         path_free(scan_path);
+
+        // Sorting once after the whole recursive scan avoids repeatedly sorting
+        // an ever-growing list on the SD card's very limited CPU budget.
+        if (menu->browser.entries > 0) {
+            qsort(menu->browser.list, menu->browser.entries, sizeof(entry_t), compare_entry);
+        }
 
         // Set up gameflix mode
         path_push(menu->browser.directory, directory);
@@ -383,12 +438,24 @@ static bool pop_directory (menu_t *menu) {
     return false;
 }
 
+path_t *view_browser_entry_path (menu_t *menu) {
+    if (!menu->browser.entry) {
+        return NULL;
+    }
+
+    if (menu->browser.entry->path) {
+        return path_clone(menu->browser.entry->path);
+    }
+
+    return path_clone_push(menu->browser.directory, menu->browser.entry->name);
+}
+
 static void show_properties (menu_t *menu, void *arg) {
     menu->next_mode = MENU_MODE_FILE_INFO;
 }
 
 static void delete_entry (menu_t *menu, void *arg) {
-    path_t *path = path_clone_push(menu->browser.directory, menu->browser.entry->name);
+    path_t *path = view_browser_entry_path(menu);
 
     if (remove(path_get(path))) {
         menu->browser.valid = false;
@@ -449,77 +516,47 @@ static void process (menu_t *menu) {
         return;
     }
 
-    int scroll_speed = menu->actions.go_fast ? 10 : 1;
-
     if (menu->browser.entries > 1) {
         if (menu->browser.display_mode == DISPLAY_MODE_GRID) {
-            // Grid navigation (2D)
-            int total_pages = (menu->browser.entries + GRID_ITEMS_PER_PAGE - 1) / GRID_ITEMS_PER_PAGE;
-            bool moved = false;
+            int selected = menu->browser.selected;
+            int page_index = selected % GRID_ITEMS_PER_PAGE;
+            int page = selected / GRID_ITEMS_PER_PAGE;
+            int row = page_index / GRID_COLS;
+            int col = page_index % GRID_COLS;
+            int new_selected = selected;
 
-            if (menu->actions.go_up) {
-                menu->browser.grid_row--;
-                if (menu->browser.grid_row < 0) {
-                    // Move to previous page
-                    if (menu->browser.current_page > 0) {
-                        menu->browser.current_page--;
-                        menu->browser.grid_row = GRID_ROWS - 1;
-                        moved = true;
-                    } else {
-                        menu->browser.grid_row = 0;
-                    }
-                } else {
-                    moved = true;
-                }
+            if (menu->actions.go_up && selected >= GRID_COLS) {
+                new_selected -= GRID_COLS;
             } else if (menu->actions.go_down) {
-                menu->browser.grid_row++;
-                if (menu->browser.grid_row >= GRID_ROWS) {
-                    // Move to next page
-                    if (menu->browser.current_page < total_pages - 1) {
-                        menu->browser.current_page++;
-                        menu->browser.grid_row = 0;
-                        moved = true;
-                    } else {
-                        menu->browser.grid_row = GRID_ROWS - 1;
-                    }
+                int below = selected + GRID_COLS;
+                if (below < menu->browser.entries) {
+                    new_selected = below;
                 } else {
-                    moved = true;
+                    int next_page = page + 1;
+                    int next_start = next_page * GRID_ITEMS_PER_PAGE;
+                    if (next_start < menu->browser.entries) {
+                        int next_entries = menu->browser.entries - next_start;
+                        new_selected = next_start + ((col < next_entries) ? col : next_entries - 1);
+                    }
                 }
-            } else if (menu->actions.go_left) {
-                menu->browser.grid_col--;
-                if (menu->browser.grid_col < 0) {
-                    menu->browser.grid_col = GRID_COLS - 1;
-                }
-                moved = true;
-            } else if (menu->actions.go_right) {
-                menu->browser.grid_col++;
-                if (menu->browser.grid_col >= GRID_COLS) {
-                    menu->browser.grid_col = 0;
-                }
-                moved = true;
+            } else if (menu->actions.go_left && col > 0) {
+                new_selected--;
+            } else if (menu->actions.go_right && col < GRID_COLS - 1 && selected + 1 < menu->browser.entries && row == ((selected + 1) % GRID_ITEMS_PER_PAGE) / GRID_COLS) {
+                new_selected++;
             }
 
-            if (moved) {
-                // Calculate selected index from grid position
-                int new_selected = (menu->browser.current_page * GRID_ITEMS_PER_PAGE) +
-                                   (menu->browser.grid_row * GRID_COLS) +
-                                   menu->browser.grid_col;
-
-                // Clamp to valid range
-                if (new_selected >= menu->browser.entries) {
-                    new_selected = menu->browser.entries - 1;
-                    // Adjust grid position to match
-                    int page_index = new_selected % GRID_ITEMS_PER_PAGE;
-                    menu->browser.grid_row = page_index / GRID_COLS;
-                    menu->browser.grid_col = page_index % GRID_COLS;
-                }
-
+            if (new_selected != selected) {
                 menu->browser.selected = new_selected;
+                page_index = new_selected % GRID_ITEMS_PER_PAGE;
+                menu->browser.current_page = new_selected / GRID_ITEMS_PER_PAGE;
+                menu->browser.grid_row = page_index / GRID_COLS;
+                menu->browser.grid_col = page_index % GRID_COLS;
                 menu->browser.entry = &menu->browser.list[menu->browser.selected];
                 sound_play_effect(SFX_CURSOR);
             }
         } else {
             // List navigation (1D)
+            int scroll_speed = menu->actions.go_fast ? 10 : 1;
             if (menu->actions.go_up) {
                 menu->browser.selected -= scroll_speed;
                 if (menu->browser.selected < 0) {
@@ -539,6 +576,9 @@ static void process (menu_t *menu) {
 
     if (menu->actions.enter && menu->browser.entry) {
         sound_play_effect(SFX_ENTER);
+        if (menu->browser.is_gameflix_mode) {
+            ui_components_grid_free();
+        }
         switch (menu->browser.entry->type) {
             case ENTRY_TYPE_DIR:
                 if (push_directory(menu, menu->browser.entry->name)) {

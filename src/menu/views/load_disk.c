@@ -242,7 +242,7 @@ void view_load_disk_init (menu_t *menu) {
         }
 
     } else {
-        menu->load.disk_path = path_clone_push(menu->browser.directory, menu->browser.entry->name);            
+        menu->load.disk_path = view_browser_entry_path(menu);
     }
 
     menu->load.load_favorite = -1;

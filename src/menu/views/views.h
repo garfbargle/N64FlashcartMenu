@@ -46,6 +46,14 @@ void view_browser_init(menu_t *menu);
 void view_browser_display(menu_t *menu, surface_t *display);
 
 /**
+ * @brief Return the selected entry's physical path.
+ *
+ * Grid entries can represent files collected from several directories, so
+ * their physical path may differ from the currently displayed virtual path.
+ */
+path_t *view_browser_entry_path(menu_t *menu);
+
+/**
  * @brief Initialize the file info view.
  * 
  * @param menu Pointer to the menu structure.

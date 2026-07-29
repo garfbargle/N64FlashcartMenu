@@ -8,6 +8,7 @@
 #define UI_COMPONENTS_H__
 
 #include <libdragon.h>
+#include "png_decoder.h"
 #include "menu_state.h"
 
 
@@ -242,6 +243,7 @@ typedef struct {
  * @return Pointer to the initialized box art component.
  */
 component_boxart_t *ui_components_boxart_init(const char *storage_prefix, char *game_code, file_image_type_t current_image_view);
+component_boxart_t *ui_components_boxart_init_with_decoder(const char *storage_prefix, char *game_code, file_image_type_t current_image_view, png_decoder_t *decoder);
 
 /**
  * @brief Free the box art component resources.

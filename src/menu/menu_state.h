@@ -65,6 +65,7 @@ typedef enum {
 /** @brief File Entry Structure */
 typedef struct {
     char *name;
+    path_t *path;
     entry_type_t type;
     int64_t size;
 } entry_t;

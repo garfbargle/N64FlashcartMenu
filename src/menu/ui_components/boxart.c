@@ -35,7 +35,7 @@ static void png_decoder_callback (png_err_t err, surface_t *decoded_image, void 
  * @param current_image_view The current image view type.
  * @return component_boxart_t* Pointer to the initialized boxart component.
  */
-component_boxart_t *ui_components_boxart_init (const char *storage_prefix, char *game_code, file_image_type_t current_image_view) {
+component_boxart_t *ui_components_boxart_init_with_decoder (const char *storage_prefix, char *game_code, file_image_type_t current_image_view, png_decoder_t *decoder) {
     component_boxart_t *b;
     char boxart_id_path[8];
 
@@ -83,7 +83,7 @@ component_boxart_t *ui_components_boxart_init (const char *storage_prefix, char 
         }
 
         if (file_exists(path_get(path))) { 
-            if (png_decoder_start(path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b) == PNG_OK) {
+            if ((decoder ? png_decoder_start_instance(decoder, path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b) : png_decoder_start(path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b)) == PNG_OK) {
                 path_free(path);
                 return b;
             }
@@ -100,7 +100,7 @@ component_boxart_t *ui_components_boxart_init (const char *storage_prefix, char 
         path_push(path, file_name);
 
         if (file_exists(path_get(path))) {
-            if (png_decoder_start(path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b) == PNG_OK) {
+            if ((decoder ? png_decoder_start_instance(decoder, path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b) : png_decoder_start(path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b)) == PNG_OK) {
                 path_free(path);
                 return b;
             }
@@ -111,7 +111,7 @@ component_boxart_t *ui_components_boxart_init (const char *storage_prefix, char 
         path_push(path, file_name);
 
         if (file_exists(path_get(path))) {
-            if (png_decoder_start(path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b) == PNG_OK) {
+            if ((decoder ? png_decoder_start_instance(decoder, path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b) : png_decoder_start(path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b)) == PNG_OK) {
                 path_free(path);
                 return b;
             }
@@ -121,7 +121,7 @@ component_boxart_t *ui_components_boxart_init (const char *storage_prefix, char 
             snprintf(file_name, sizeof(file_name), "%c%c.png", game_code[1], game_code[2]);
             path_push(path, file_name);
             if (file_exists(path_get(path))) {
-                if (png_decoder_start(path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b) == PNG_OK) {
+                if ((decoder ? png_decoder_start_instance(decoder, path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b) : png_decoder_start(path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b)) == PNG_OK) {
                     path_free(path);
                     return b;
                 }
@@ -134,6 +134,10 @@ component_boxart_t *ui_components_boxart_init (const char *storage_prefix, char 
     free(b);
 
     return NULL;
+}
+
+component_boxart_t *ui_components_boxart_init (const char *storage_prefix, char *game_code, file_image_type_t current_image_view) {
+    return ui_components_boxart_init_with_decoder(storage_prefix, game_code, current_image_view, NULL);
 }
 
 /**

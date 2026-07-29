@@ -152,10 +152,14 @@ static void set_tv_type (menu_t *menu, void *arg) {
 }
 
 static void set_autoload_type (menu_t *menu, void *arg) {
+    path_t *directory = path_clone(menu->load.rom_path);
+    path_pop(directory);
+
     free(menu->settings.rom_autoload_path);
-    menu->settings.rom_autoload_path = strdup(strip_fs_prefix(path_get(menu->browser.directory)));
+    menu->settings.rom_autoload_path = strdup(strip_fs_prefix(path_get(directory)));
     free(menu->settings.rom_autoload_filename);
-    menu->settings.rom_autoload_filename = strdup(menu->browser.entry->name);
+    menu->settings.rom_autoload_filename = strdup(path_last_get(menu->load.rom_path));
+    path_free(directory);
     // FIXME: add a confirmation box here! (press start on reboot)
     menu->settings.rom_autoload_enabled = true;
     settings_save(&menu->settings);
@@ -387,7 +391,7 @@ void view_load_rom_init (menu_t *menu) {
         } else if(menu->load.load_favorite != -1) {
             menu->load.rom_path = path_clone(menu->bookkeeping.favorite_items[menu->load.load_favorite].primary_path);
         } else {
-            menu->load.rom_path = path_clone_push(menu->browser.directory, menu->browser.entry->name);
+            menu->load.rom_path = view_browser_entry_path(menu);
         }
 
         rom_filename = path_last_get(menu->load.rom_path);

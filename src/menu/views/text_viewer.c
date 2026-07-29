@@ -136,7 +136,7 @@ void view_text_viewer_init (menu_t *menu) {
         return menu_show_error(menu, "Couldn't allocate memory for the text file");
     }
 
-    path_t *path = path_clone_push(menu->browser.directory, menu->browser.entry->name);
+    path_t *path = view_browser_entry_path(menu);
     text->f = fopen(path_get(path), "r");
     path_free(path);
 

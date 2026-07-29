@@ -262,7 +262,9 @@ cart_load_err_t cart_load_emulator (menu_t *menu, cart_load_emu_type_t emu_type,
 
     path_free(path);
 
-    path = path_clone_push(menu->browser.directory, menu->browser.entry->name);
+    path = menu->browser.entry->path
+        ? path_clone(menu->browser.entry->path)
+        : path_clone_push(menu->browser.directory, menu->browser.entry->name);
 
     switch (emu_type) {
         case CART_LOAD_EMU_TYPE_SNES:
