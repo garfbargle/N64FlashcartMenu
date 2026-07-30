@@ -32,9 +32,11 @@ typedef struct {
     png_decoder_t *decoders[GRID_ITEMS_PER_PAGE];
     char game_codes[GRID_ITEMS_PER_PAGE][4];
     bool cached[GRID_ITEMS_PER_PAGE];
+    bool custom[GRID_ITEMS_PER_PAGE];
     component_boxart_t *prefetch_thumbnail;
     png_decoder_t *prefetch_decoder;
     char prefetch_game_code[4];
+    bool prefetch_custom;
     int prefetch_index;
     int loaded_page;
 } component_grid_t;
@@ -161,13 +163,13 @@ static void grid_thumbnail_free (component_boxart_t *boxart) {
     free(boxart);
 }
 
-static component_boxart_t *load_grid_thumbnail (const char *storage_prefix, char game_code[4], png_decoder_t **decoder) {
+static component_boxart_t *load_grid_thumbnail (const char *storage_prefix, char game_code[4], const char *rom_filename, png_decoder_t **decoder) {
     *decoder = png_decoder_create();
     if (!*decoder) {
         return NULL;
     }
 
-    component_boxart_t *boxart = ui_components_boxart_init_with_decoder(storage_prefix, game_code, IMAGE_BOXART_FRONT, *decoder);
+    component_boxart_t *boxart = ui_components_boxart_init_with_decoder_for_rom(storage_prefix, game_code, rom_filename, IMAGE_BOXART_FRONT, *decoder);
     if (!boxart) {
         png_decoder_destroy(*decoder);
         *decoder = NULL;
@@ -186,6 +188,7 @@ void ui_components_grid_free (void) {
         png_decoder_destroy(grid_state.decoders[i]);
         grid_state.decoders[i] = NULL;
         grid_state.cached[i] = false;
+        grid_state.custom[i] = false;
 
         component_boxart_t *boxart = grid_state.thumbnails[i];
         grid_thumbnail_free(boxart);
@@ -224,7 +227,9 @@ static void grid_prefetch_next_page (const char *storage_prefix, entry_t *list, 
         }
         if (!grid_state.prefetch_thumbnail->loading) {
             if (grid_state.prefetch_thumbnail->image) {
-                grid_cache_save(storage_prefix, grid_state.prefetch_game_code, grid_state.prefetch_thumbnail->image);
+                if (!grid_state.prefetch_custom) {
+                    grid_cache_save(storage_prefix, grid_state.prefetch_game_code, grid_state.prefetch_thumbnail->image);
+                }
             }
             png_decoder_destroy(grid_state.prefetch_decoder);
             grid_state.prefetch_decoder = NULL;
@@ -251,14 +256,16 @@ static void grid_prefetch_next_page (const char *storage_prefix, entry_t *list, 
             continue;
         }
 
-        component_boxart_t *cached = grid_cache_load(storage_prefix, game_code);
+        bool custom = ui_components_boxart_has_custom_cover(storage_prefix, entry->name);
+        component_boxart_t *cached = custom ? NULL : grid_cache_load(storage_prefix, game_code);
         if (cached) {
             grid_thumbnail_free(cached);
             continue;
         }
 
         memcpy(grid_state.prefetch_game_code, game_code, sizeof(game_code));
-        grid_state.prefetch_thumbnail = load_grid_thumbnail(storage_prefix, game_code, &grid_state.prefetch_decoder);
+        grid_state.prefetch_custom = custom;
+        grid_state.prefetch_thumbnail = load_grid_thumbnail(storage_prefix, game_code, entry->name, &grid_state.prefetch_decoder);
         if (grid_state.prefetch_thumbnail) {
             grid_state.prefetch_index--;
             return;
@@ -290,11 +297,12 @@ void ui_components_grid_load_page (const char *storage_prefix, entry_t *list, in
             }
 
             memcpy(grid_state.game_codes[grid_index], game_code, sizeof(game_code));
-            grid_state.thumbnails[grid_index] = grid_cache_load(storage_prefix, game_code);
+            grid_state.custom[grid_index] = ui_components_boxart_has_custom_cover(storage_prefix, entry->name);
+            grid_state.thumbnails[grid_index] = grid_state.custom[grid_index] ? NULL : grid_cache_load(storage_prefix, game_code);
             if (grid_state.thumbnails[grid_index]) {
                 grid_state.cached[grid_index] = true;
             } else {
-                grid_state.thumbnails[grid_index] = load_grid_thumbnail(storage_prefix, game_code, &grid_state.decoders[grid_index]);
+                grid_state.thumbnails[grid_index] = load_grid_thumbnail(storage_prefix, game_code, entry->name, &grid_state.decoders[grid_index]);
             }
         }
     }
@@ -314,7 +322,7 @@ void ui_components_grid_load_page (const char *storage_prefix, entry_t *list, in
     // Cache at most one completed PNG per frame to keep SD writes unobtrusive.
     for (int i = 0; i < GRID_ITEMS_PER_PAGE; i++) {
         component_boxart_t *thumbnail = grid_state.thumbnails[i];
-        if (thumbnail && thumbnail->image && !grid_state.cached[i]) {
+        if (thumbnail && thumbnail->image && !grid_state.cached[i] && !grid_state.custom[i]) {
             grid_cache_save(storage_prefix, grid_state.game_codes[i], thumbnail->image);
             grid_state.cached[i] = true;
             break;

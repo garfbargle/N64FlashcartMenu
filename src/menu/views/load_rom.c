@@ -409,7 +409,7 @@ void view_load_rom_init (menu_t *menu) {
     }
 
     if (!menu->settings.rom_autoload_enabled) {
-        boxart = ui_components_boxart_init(menu->storage_prefix, menu->load.rom_info.game_code, IMAGE_BOXART_FRONT);
+        boxart = ui_components_boxart_init_for_rom(menu->storage_prefix, menu->load.rom_info.game_code, rom_filename, IMAGE_BOXART_FRONT);
         ui_components_context_menu_init(&options_context_menu);
     }
 }

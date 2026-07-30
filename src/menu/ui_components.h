@@ -244,6 +244,14 @@ typedef struct {
  */
 component_boxart_t *ui_components_boxart_init(const char *storage_prefix, char *game_code, file_image_type_t current_image_view);
 component_boxart_t *ui_components_boxart_init_with_decoder(const char *storage_prefix, char *game_code, file_image_type_t current_image_view, png_decoder_t *decoder);
+/**
+ * @brief Initialize box art, preferring an exact-ROM-name custom cover when present.
+ *
+ * A custom front cover lives at sd:/menu/boxart/custom/<ROM filename>.png.
+ */
+component_boxart_t *ui_components_boxart_init_for_rom(const char *storage_prefix, char *game_code, const char *rom_filename, file_image_type_t current_image_view);
+component_boxart_t *ui_components_boxart_init_with_decoder_for_rom(const char *storage_prefix, char *game_code, const char *rom_filename, file_image_type_t current_image_view, png_decoder_t *decoder);
+bool ui_components_boxart_has_custom_cover(const char *storage_prefix, const char *rom_filename);
 
 /**
  * @brief Free the box art component resources.

@@ -5,6 +5,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "../ui_components.h"
 #include "../path.h"
@@ -13,6 +14,7 @@
 #include "utils/fs.h"
 
 #define BOXART_DIRECTORY    "menu/boxart"
+#define BOXART_CUSTOM_DIRECTORY "custom"
 
 /**
  * @brief PNG decoder callback function.
@@ -136,8 +138,56 @@ component_boxart_t *ui_components_boxart_init_with_decoder (const char *storage_
     return NULL;
 }
 
+static bool boxart_custom_cover_path (path_t *path, const char *rom_filename) {
+    if (!rom_filename || !rom_filename[0]) {
+        return false;
+    }
+
+    size_t filename_length = strlen(rom_filename) + sizeof(".png");
+    char *filename = malloc(filename_length);
+    if (!filename) {
+        return false;
+    }
+    snprintf(filename, filename_length, "%s.png", rom_filename);
+    path_push(path, BOXART_CUSTOM_DIRECTORY);
+    path_push(path, filename);
+    free(filename);
+    return file_exists(path_get(path));
+}
+
+bool ui_components_boxart_has_custom_cover (const char *storage_prefix, const char *rom_filename) {
+    path_t *path = path_init(storage_prefix, BOXART_DIRECTORY);
+    bool exists = boxart_custom_cover_path(path, rom_filename);
+    path_free(path);
+    return exists;
+}
+
 component_boxart_t *ui_components_boxart_init (const char *storage_prefix, char *game_code, file_image_type_t current_image_view) {
     return ui_components_boxart_init_with_decoder(storage_prefix, game_code, current_image_view, NULL);
+}
+
+component_boxart_t *ui_components_boxart_init_with_decoder_for_rom (const char *storage_prefix, char *game_code, const char *rom_filename, file_image_type_t current_image_view, png_decoder_t *decoder) {
+    if (current_image_view == IMAGE_BOXART_FRONT) {
+        path_t *path = path_init(storage_prefix, BOXART_DIRECTORY);
+        if (boxart_custom_cover_path(path, rom_filename)) {
+            component_boxart_t *b = calloc(1, sizeof(component_boxart_t));
+            if (b) {
+                b->loading = true;
+                if ((decoder ? png_decoder_start_instance(decoder, path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b) : png_decoder_start(path_get(path), BOXART_WIDTH_MAX, BOXART_HEIGHT_MAX, png_decoder_callback, b)) == PNG_OK) {
+                    path_free(path);
+                    return b;
+                }
+                free(b);
+            }
+        }
+        path_free(path);
+    }
+
+    return ui_components_boxart_init_with_decoder(storage_prefix, game_code, current_image_view, decoder);
+}
+
+component_boxart_t *ui_components_boxart_init_for_rom (const char *storage_prefix, char *game_code, const char *rom_filename, file_image_type_t current_image_view) {
+    return ui_components_boxart_init_with_decoder_for_rom(storage_prefix, game_code, rom_filename, current_image_view, NULL);
 }
 
 /**

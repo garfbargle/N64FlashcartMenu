@@ -58,6 +58,11 @@ decoded progressively, cached on the SD card, and prepared for the next page
 in the background—keeping browsing responsive even on flashcarts with very
 limited hardware.
 
+Custom or homebrew cover art can use an exact-ROM-name override at
+`/menu/boxart/custom/<ROM filename>.png`; use a 158x112 PNG. This is especially
+useful for ROMs without a normal N64 game code. See the [box-art guide](./docs/19_gamepak_boxart.md)
+for the complete, repeatable workflow.
+
 
 ## Aims
 * Support as many N64 Flashcarts as possible.

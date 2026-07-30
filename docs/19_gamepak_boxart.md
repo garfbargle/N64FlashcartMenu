@@ -16,6 +16,22 @@ To improve compatibility between regions (as a fallback), you may exclude the re
 i.e. for GoldenEye, this would be `sd:/menu/boxart/N/G/E/boxart_front.png`.
 
 **Warning**: Excluding the region ID may show a box art of the wrong region.  
+
+### Custom and homebrew covers
+
+For a ROM with no reliable four-character game code, or to deliberately override
+the standard cover, use its exact filename instead. Place a landscape
+`158x112` PNG at `sd:/menu/boxart/custom/<ROM filename>.png`; for example,
+`sd:/menu/boxart/custom/Mine64.n64.png`. This exact-name cover takes priority
+over code-based art and is intentionally not cached, so replacing it takes
+effect the next time Gameflix opens.
+
+For a new cover, keep the original artwork, center-crop only if its aspect
+ratio differs from 158:112, resize it to exactly `158x112`, export as PNG, and
+copy it to the path above while the console is powered off. Use the exact ROM
+filename shown in the Files browser, including its extension. For ordinary
+commercial ROMs, the four-character directory method above remains preferred.
+
 **Note**: For future support, box art sprites should also include:  
 - `boxart_back.png`
 - `boxart_top.png`
